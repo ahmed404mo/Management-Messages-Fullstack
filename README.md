@@ -1,179 +1,197 @@
-# Thesis Management System
+# Thesis Management System — بوابة الرسائل
 
-A modern web application for managing academic theses and faculty collaboration built with Next.js, Prisma, and NextAuth.
+A graduate studies management platform for tracking academic theses, faculty supervision, promotions, and notifications. Built with Next.js (App Router), Prisma, and NextAuth, featuring a fully Arabic RTL interface for both administrators and faculty doctors.
 
 ## Features
 
-- **Authentication System**: Secure login with NextAuth support for multiple user roles
-- **Admin Dashboard**: Manage users, theses, promotions, faculty, and broadcast notifications
-- **Doctor Dashboard**: Access personal thesis management, notifications, and profile settings
-- **Thesis Management**: Create, track, and manage academic theses and external collaborations
-- **Real-time Notifications**: WebSocket support for instant updates
-- **Responsive Design**: Mobile-friendly UI with dark mode support
-- **Database**: Prisma ORM with Neon PostgreSQL support
+- **Role-Based Authentication**: Secure login via NextAuth credentials using the doctor code + password (`ADMIN` / `DOCTOR` roles)
+- **Admin Dashboard**:
+  - Manage theses (master's & PhD) with statuses (Pending / In Progress / Approved)
+  - Manage doctors, faculty doctors, and external examiners
+  - Assign supervisors to theses (internal faculty + external examiners)
+  - Track faculty promotions (old title → new title with dates)
+  - Broadcast notifications to all users with read tracking
+- **Doctor Dashboard**:
+  - Browse the digital library of theses with supervisor details
+  - View thesis details by ID
+  - Receive and read broadcast notifications
+  - Manage profile and contact information
+- **Excel Imports**: Bulk import doctors/theses from `.xlsx` files
+- **Real-time Notifications**: WebSocket (`ws`) support for instant updates
+- **Dark Mode**: Responsive mobile-friendly UI with dark mode support
 
 ## Tech Stack
 
 - **Frontend**: React 19, Next.js 16 with TypeScript
-- **Styling**: Tailwind CSS 4 with PostCSS
-- **Database**: Prisma 6 with Neon Adapter
-- **Authentication**: NextAuth 4
-- **UI Components**: Radix UI with custom components
-- **Forms**: React Hook Form with Zod validation
+- **Styling**: Tailwind CSS 4 + shadcn/ui (Radix UI) components
+- **Database**: PostgreSQL via Prisma 6 (Neon serverless adapter)
+- **Authentication**: NextAuth 4 (credentials), bcrypt-hashed passwords + temp passwords
+- **Forms & Validation**: React Hook Form + Zod
 - **Charts**: Recharts
-- **Real-time**: WebSocket (ws)
+- **Animations**: Framer Motion
+- **File Parsing**: xlsx (Excel imports)
+- **Real-time**: WebSocket (`ws`)
 - **Icons**: Lucide React
 
 ## Project Structure
 
 ```
-├── app/                    # Next.js app directory
-│   ├── (admin)/           # Admin dashboard routes
-│   ├── (auth)/            # Authentication routes
-│   ├── (doctor)/          # Doctor dashboard routes
-│   ├── api/               # API routes
-│   └── layout.tsx         # Root layout
-├── components/            # Reusable React components
-│   └── ui/               # Radix UI wrapper components
-├── hooks/                # Custom React hooks
-├── lib/                  # Utility functions (Prisma client)
-├── prisma/              # Prisma schema and migrations
-├── public/              # Static files
-├── styles/              # Global CSS
-└── types/               # TypeScript definitions
+├── app/
+│   ├── (admin)/admin-dashboard/     # Admin routes
+│   │   ├── theses/                  # Thesis management
+│   │   ├── doctors/                 # Doctor accounts
+│   │   ├── faculty-doctors/         # Faculty doctors & supervisions
+│   │   ├── promotions/              # Faculty promotions
+│   │   ├── externals/               # External examiners
+│   │   └── broadcast/               # Notification broadcasting
+│   ├── (auth)/login/                # Authentication page
+│   ├── (doctor)/doctor-dashboard/   # Doctor routes
+│   │   ├── theses/                  # Digital theses library
+│   │   ├── thesis/[id]/             # Thesis details
+│   │   ├── notifications/           # Broadcast notifications
+│   │   ├── profile/                 # Profile settings
+│   │   └── contact/                 # Contact info
+│   ├── api/                         # API routes
+│   ├── actions/                     # Server actions (Excel import)
+│   ├── layout.tsx                   # Root layout
+│   └── globals.css                  # Global styles
+├── components/                      # Reusable UI components
+│   └── ui/                          # shadcn/Radix UI components
+├── lib/                            # Prisma client & utilities
+├── prisma/                         # Prisma schema, migrations & seed
+├── public/                         # Static assets
+└── middleware.ts                   # Route protection (role-based)
 ```
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js 18+ or Bun
-- npm or yarn package manager
+- Node.js 18+ (or Bun)
+- npm / yarn / pnpm
+- A PostgreSQL database (local or Neon serverless)
 
 ### Installation
 
-1. Clone the repository
+1. Clone the repository:
+```bash
+git clone <repo-url>
+cd <repo-name>
+```
+
 2. Install dependencies:
 ```bash
 npm install
 ```
 
-3. Set up environment variables (create `.env.local`):
+3. Set up environment variables — create `.env.local`:
 ```env
-# Database
-DATABASE_URL=your_neon_database_url
+# Database (Neon PostgreSQL recommended)
+DATABASE_URL=postgresql://user:password@host/dbname?sslmode=require
 
 # NextAuth
 NEXTAUTH_URL=http://localhost:3000
-NEXTAUTH_SECRET=your_secret_key
-
-# Add other required environment variables
+NEXTAUTH_SECRET=generate-a-strong-secret
 ```
 
-4. Set up the database with Prisma:
+4. Run database migrations:
 ```bash
 npx prisma migrate dev
 ```
 
-5. Seed the database (optional):
+5. Seed the database (creates the admin account):
 ```bash
 npm run seed
 ```
 
+Default seeded account:
+
+| Role | Code | Password |
+|---|---|---|
+| Admin | `admin` | `admin123` |
+
+> ⚠️ Change the password immediately after the first login.
+
 ## Running the Project
 
-### Development Mode
+### Development
 ```bash
 npm run dev
 ```
-The application will run at `http://localhost:3000`
+The app runs at `http://localhost:3000`.
 
-### Production Build
+### Production
 ```bash
 npm run build
 npm start
 ```
 
-### Lint Code
+### Lint
 ```bash
 npm run lint
 ```
 
-## Database
+## Routes
 
-### Prisma Commands
-- Create a new migration: `npx prisma migrate dev --name <migration_name>`
-- View database UI: `npx prisma studio`
-- Check migration status: `npx prisma migrate status`
-- Reset database: `npx prisma migrate reset`
+### Admin (`/admin-dashboard`)
+- `/admin-dashboard` — Dashboard with stats (theses, doctors, supervisors, master/PhD counts)
+- `/admin-dashboard/theses` — Thesis management
+- `/admin-dashboard/doctors` — Doctor accounts
+- `/admin-dashboard/faculty-doctors` — Faculty doctors & supervision assignments
+- `/admin-dashboard/promotions` — Faculty promotions
+- `/admin-dashboard/externals` — External examiners
+- `/admin-dashboard/broadcast` — Send & manage broadcast notifications
 
-### Schema
-The Prisma schema is located in `prisma/schema.prisma`
+### Doctor (`/doctor-dashboard`)
+- `/doctor-dashboard` — Digital thesis library
+- `/doctor-dashboard/theses` — My theses
+- `/doctor-dashboard/thesis/[id]` — Thesis details
+- `/doctor-dashboard/notifications` — Notifications
+- `/doctor-dashboard/profile` — Profile settings
+- `/doctor-dashboard/contact` — Contact information
 
-## Key Pages
-
-### Admin Routes (`/admin`)
-- Dashboard: `/admin-dashboard`
-- Thesis Management: `/admin-dashboard/theses`
-- Doctors: `/admin-dashboard/doctors`
-- Faculty Doctors: `/admin-dashboard/faculty-doctors`
-- Promotions: `/admin-dashboard/promotions`
-- External Collaborators: `/admin-dashboard/externals`
-- Broadcast: `/admin-dashboard/broadcast`
-
-### Doctor Routes (`/doctor`)
-- Dashboard: `/doctor-dashboard`
-- My Theses: `/doctor-dashboard/theses`
-- Thesis Details: `/doctor-dashboard/thesis/[id]`
-- Profile: `/doctor-dashboard/profile`
-- Notifications: `/doctor-dashboard/notifications`
-- Contact: `/doctor-dashboard/contact`
-
-### Auth Routes
-- Login: `/login`
+### Auth
+- `/login` — Login page (doctor code + password)
 
 ## API Routes
 
-- Authentication: `/api/auth/[...nextauth]`
-- Admin Creation: `/api/create-admin`
+- `POST /api/auth/[...nextauth]` — NextAuth authentication
+- `GET /api/create-admin` — Creates/resets the admin account (`admin@system.com` / `admin123`)
 
-## UI Components
+## Database (Prisma Models)
 
-Custom UI components are built on Radix UI and located in `components/ui/`:
-- Forms, inputs, buttons
-- Dialogs, modals, drawers
-- Cards, tables, charts
-- Navigation components
-- And many more...
+| Model | Purpose |
+|---|---|
+| `User` | System users (`ADMIN` / `DOCTOR`) with doctor code, academic title, temp password |
+| `Thesis` | Academic theses (Master/PhD) with status, defense date, department & notes |
+| `FacultyDoctor` | Faculty doctors participating in supervision |
+| `ExternalExaminer` | External examiners (university, academic title, specialty) |
+| `Supervision` | Links theses to supervisors (faculty doctor or external examiner + role) |
+| `Promotion` | Faculty promotion history (old/new title + date) |
+| `Notification` | Broadcast notifications (title, message, type, read flag) |
 
-## Configuration Files
+### Enums
+- `Role`: `ADMIN`, `DOCTOR`
+- `ThesisType`: `MASTER`, `PHD`
+- `ThesisStatus`: `PENDING` (قيد التجهيز), `IN_PROGRESS` (قيد المناقشة), `APPROVED` (مجازة)
 
-- `next.config.mjs`: Next.js configuration
-- `tsconfig.json`: TypeScript configuration
-- `tailwind.config.js`: Tailwind CSS configuration
-- `postcss.config.mjs`: PostCSS configuration
-- `components.json`: Shadcn component configuration
+### Prisma Commands
+- Create migration: `npx prisma migrate dev --name <name>`
+- Database UI: `npx prisma studio`
+- Check status: `npx prisma migrate status`
+- Reset: `npx prisma migrate reset`
 
-## Development Tips
+## Security
 
-1. **Type Safety**: Make sure to use TypeScript for all new components
-2. **Components**: Use the UI components from `components/ui/` for consistency
-3. **Styling**: Follow Tailwind CSS naming conventions
-4. **Server Actions**: Use server-side actions for mutations (in `actions.ts` files)
-5. **Environment Variables**: Always use environment variables for sensitive data
+- Passwords hashed with `bcrypt` (10 rounds), with temporary-password support
+- Role-based route protection via NextAuth middleware (`/admin-dashboard` requires `ADMIN`, `/doctor-dashboard` requires `DOCTOR`)
+- Server-side authorization on all mutations (server actions)
+- Environment variables used for all sensitive config (no hardcoded secrets)
 
-## Contributing
+## Deployment
 
-When contributing to this project:
-1. Follow TypeScript best practices
-2. Use existing UI components
-3. Keep components focused and reusable
-4. Write meaningful commit messages
+Deployable on Vercel. Set the environment variables in your hosting provider and run migrations against your production database. For Neon PostgreSQL, the app ships with the `@neondatabase/serverless` adapter.
 
 ## License
 
 All rights reserved. DR. Mohamed Atta
-
-## Support
-
-For issues and questions, please contact the development team.
