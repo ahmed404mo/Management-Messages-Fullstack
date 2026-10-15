@@ -2,11 +2,19 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
-// جلب كل الإشعارات
-export async function getNotifications() {
-  return await prisma.notification.findMany({
-    orderBy: { createdAt: 'desc' }
-  });
+// جلب إشعارات مع pagination
+export async function getNotifications(page: number = 1, take: number = 20) {
+  const skip = Math.max(0, (page - 1) * take);
+  // جلب الصفحة وعدد الكل بالتوازي
+  const [notifications, total] = await Promise.all([
+    prisma.notification.findMany({
+      orderBy: { createdAt: "desc" },
+      take,
+      skip,
+    }),
+    prisma.notification.count(),
+  ]);
+  return { notifications, total };
 }
 
 // إرسال إشعار جديد

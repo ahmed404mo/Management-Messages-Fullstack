@@ -1,9 +1,9 @@
 "use client";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-  Send, Megaphone, Eye, Info, AlertCircle, 
-  Bell, Clock, CheckCircle2, Trash2, Edit3, X 
+import {
+  Send, Megaphone, Eye, Info, AlertCircle,
+  Bell, Clock, CheckCircle2, Trash2, Edit3, X
 } from "lucide-react";
 import { sendNotification, deleteNotification, getNotifications, updateNotification } from "./actions";
 
@@ -15,10 +15,35 @@ export default function BroadcastPage() {
     show: false, msg: "", type: 'success'
   });
 
-  // تحميل البيانات عند فتح الصفحة
+  // pagination state
+  const [page, setPage] = useState<number>(1);
+  const pageSize = 20; // عدّل حسب الحاجة
+  const [total, setTotal] = useState<number>(0);
+
+  // دالة جلب مرنة
+  const fetchNotifications = async (p = 1) => {
+    try {
+      const res = await getNotifications(p, pageSize);
+      // إذا كانت الدالة في server ترجع { notifications, total }
+      if (res && (res as any).notifications) {
+        setNotifications((res as any).notifications);
+        setTotal((res as any).total ?? 0);
+      } else {
+        // دعم الرجوع القديم لو لم يحدث التعديل
+        setNotifications(res as any ?? []);
+        setTotal((res as any)?.length ?? 0);
+      }
+    } catch (err) {
+      console.error("Error fetching notifications:", err);
+      setNotifications([]);
+      setTotal(0);
+    }
+  };
+
+  // تحميل البيانات عند فتح الصفحة أو تغيير الصفحة
   useEffect(() => {
-    getNotifications().then(setNotifications);
-  }, []);
+    fetchNotifications(page);
+  }, [page]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,8 +57,9 @@ export default function BroadcastPage() {
         setPopup("تم إرسال الإشعار للجميع بنجاح", 'success');
       }
       setFormData({ id: "", title: "", message: "", type: "info" });
-      const updated = await getNotifications();
-      setNotifications(updated);
+      // بعد الإرسال اعد تحميل أول صفحة
+      setPage(1);
+      await fetchNotifications(1);
     } catch (err) {
       setPopup("حدث خطأ أثناء العملية", 'error');
     } finally {
@@ -48,7 +74,12 @@ export default function BroadcastPage() {
       type: 'confirm',
       action: async () => {
         await deleteNotification(id);
-        setNotifications(notifications.filter(n => n.id !== id));
+        // بعد الحذف: أعد تحميل الصفحة الحالية (أو تحقق إن الصفحة فارغة لتنقّل للسابقة)
+        const newTotal = Math.max(0, total - 1);
+        const lastPage = Math.max(1, Math.ceil(newTotal / pageSize));
+        const newPage = page > lastPage ? lastPage : page;
+        setPage(newPage);
+        await fetchNotifications(newPage);
         setPopup("تم الحذف بنجاح", 'success');
       }
     });
@@ -59,9 +90,12 @@ export default function BroadcastPage() {
     if (type !== 'confirm') setTimeout(() => setShowPopup(prev => ({...prev, show: false})), 3000);
   };
 
+  // حساب صفحات
+  const totalPages = Math.max(1, Math.ceil((total || notifications.length) / pageSize));
+
   return (
     <div className="max-w-6xl mx-auto space-y-10 p-4 font-sans" dir="rtl">
-      
+
       {/* 1. Header */}
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-black text-slate-950 flex items-center gap-3">
@@ -80,7 +114,7 @@ export default function BroadcastPage() {
             </h2>
             <div className="grid grid-cols-3 gap-2">
               {['info', 'warning', 'success'].map((t) => (
-                <button key={t} type="button" onClick={() => setFormData({...formData, type: t})} 
+                <button key={t} type="button" onClick={() => setFormData({...formData, type: t})}
                   className={`py-3 rounded-2xl text-[10px] font-black transition-all ${formData.type === t ? 'bg-slate-950 text-white' : 'bg-slate-100 text-slate-500'}`}>
                   {t === 'info' ? 'معلومة' : t === 'warning' ? 'تنبيه عاجل' : 'إعلان/نجاح'}
                 </button>
@@ -91,7 +125,7 @@ export default function BroadcastPage() {
             <textarea required rows={4} placeholder="محتوى الرسالة..." value={formData.message} onChange={e => setFormData({...formData, message: e.target.value})}
               className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-5 py-4 text-sm font-bold text-slate-900 outline-none focus:border-blue-500 transition-all resize-none"/>
             <div className="flex gap-2">
-              <button disabled={isSending} className="flex-1 py-4 rounded-2xl font-black text-white bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2 transition-all">
+              <button disabled={isSending} className="flex-1 py-4 rounded-2xl font-black text-white bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2">
                 {isSending ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <><Send size={18}/> {formData.id ? "تحديث الآن" : "بث الإشعار"}</>}
               </button>
               {formData.id && <button type="button" onClick={() => setFormData({id:"", title:"", message:"", type:"info"})} className="px-6 rounded-2xl bg-slate-100 text-slate-600 font-bold">إلغاء</button>}
@@ -122,6 +156,7 @@ export default function BroadcastPage() {
         <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
           <Clock size={20} className="text-slate-400"/> سجل الرسائل المرسلة
         </h2>
+
         <div className="grid gap-4">
           {notifications.map((n) => (
             <div key={n.id} className="bg-white border-2 border-slate-50 p-6 rounded-[2rem] flex justify-between items-center group hover:border-blue-100 transition-all shadow-sm">
@@ -141,6 +176,23 @@ export default function BroadcastPage() {
             </div>
           ))}
         </div>
+
+        {/* Pagination controls */}
+        <div className="flex items-center justify-between mt-4">
+          <div className="text-sm text-slate-500 font-bold">
+            عرض صفحة {page} من {totalPages} — إجمالي {total || notifications.length} إشعار
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+              className={`px-4 py-2 rounded-2xl font-black ${page === 1 ? 'bg-slate-100 text-slate-400' : 'bg-slate-900 text-white'}`}>
+              السابق
+            </button>
+            <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+              className={`px-4 py-2 rounded-2xl font-black ${page === totalPages ? 'bg-slate-100 text-slate-400' : 'bg-slate-900 text-white'}`}>
+              التالي
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* 5. Custom Popup Modal */}
@@ -150,13 +202,13 @@ export default function BroadcastPage() {
             <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
               className="bg-white rounded-[2.5rem] p-8 max-w-sm w-full shadow-2xl text-center space-y-6">
               <div className={`w-20 h-20 mx-auto rounded-full flex items-center justify-center ${showPopup.type === 'success' ? 'bg-emerald-100 text-emerald-600' : showPopup.type === 'confirm' ? 'bg-amber-100 text-amber-600' : 'bg-rose-100 text-rose-600'}`}>
-                {showPopup.type === 'success' ? <CheckCircle2 size={40}/> : <AlertCircle size={40}/>}
+                {showPopup.type === 'success' ? <CheckCircle2 size={40}/> : <AlertCircle size={40}/>} 
               </div>
               <p className="text-slate-900 font-black text-lg">{showPopup.msg}</p>
               <div className="flex gap-3">
                 {showPopup.type === 'confirm' ? (
                   <>
-                    <button onClick={() => { showPopup.action?.(); setShowPopup({...showPopup, show: false}); }} className="flex-1 py-3 bg-rose-500 text-white rounded-2xl font-black shadow-lg shadow-rose-500/20">حذف نهائي</button>
+                    <button onClick={() => { showPopup.action?.(); setShowPopup({...showPopup, show: false}); }} className="flex-1 py-3 bg-rose-500 text-white rounded-2xl font-black shadow-lg">حذف</button>
                     <button onClick={() => setShowPopup({...showPopup, show: false})} className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-2xl font-black">إلغاء</button>
                   </>
                 ) : (
