@@ -10,9 +10,14 @@ import {
 } from "./actions";
 import { Edit, Trash2, GraduationCap, UserPlus, Award, UserCog, Check, X, AlertCircle, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { PaginationControls } from "@/components/list-pagination";
+
+const PAGE_SIZE = 10;
 
 export default function FacultyDoctorsPage() {
   const [doctors, setDoctors] = useState<any[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
   const [editingDoc, setEditingDoc] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [popup, setPopup] = useState<{show: boolean, msg: string, type: 'success' | 'error'}>({show: false, msg: '', type: 'success'});
@@ -21,11 +26,13 @@ export default function FacultyDoctorsPage() {
   
   const academicTitles = ["معيد", "مدرس مساعد", "مدرس", "أستاذ مساعد", "أستاذ دكتور"];
 
-  useEffect(() => { loadDoctors(); }, []);
+  useEffect(() => { loadDoctors(1); }, []);
 
-  const loadDoctors = async () => {
-    const data = await getFacultyDoctors();
-    setDoctors(data);
+  const loadDoctors = async (pageToLoad: number = page) => {
+    const data = await getFacultyDoctors(pageToLoad, PAGE_SIZE);
+    setDoctors(data.items);
+    setTotal(data.total);
+    setPage(data.page);
   };
 
   const showPopup = (msg: string, type: 'success' | 'error') => {
@@ -53,7 +60,7 @@ export default function FacultyDoctorsPage() {
       showPopup(editingDoc ? "تم تحديث البيانات بنجاح" : "تمت إضافة العضو بنجاح", "success");
       setEditingDoc(null);
       formRef.current?.reset();
-      loadDoctors();
+      loadDoctors(page);
     } else {
       showPopup(res?.error || "حدث خطأ ما", "error");
     }
@@ -64,7 +71,7 @@ export default function FacultyDoctorsPage() {
     const res = await deleteFacultyDoctorAction(deleteConfirm.id);
     if (res?.success) {
       showPopup("تم حذف العضو من السجلات", "success");
-      loadDoctors();
+      loadDoctors(doctors.length === 1 && page > 1 ? page - 1 : page);
     } else {
       showPopup(res?.error || "لا يمكن الحذف", "error");
     }
@@ -177,7 +184,7 @@ export default function FacultyDoctorsPage() {
         {/* List Column */}
         <div className="lg:col-span-8">
           <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-2xl overflow-hidden">
-            <div className="p-6 bg-slate-950 text-white font-black text-[11px] uppercase tracking-[4px] text-center border-b border-white/10">سجل المشرفين المعتمدين</div>
+            <div className="p-6 bg-slate-950 text-white font-black text-[11px] uppercase tracking-[4px] text-center border-b border-white/10">سجل المشرفين المعتمدين ({total})</div>
             <div className="overflow-x-auto">
               <table className="w-full text-right border-collapse">
                 <tbody className="divide-y divide-slate-100">
@@ -225,6 +232,8 @@ export default function FacultyDoctorsPage() {
               </table>
             </div>
           </div>
+
+          <PaginationControls currentPage={page} totalPages={Math.ceil(total / PAGE_SIZE)} onPageChange={loadDoctors} />
         </div>
       </div>
     </div>

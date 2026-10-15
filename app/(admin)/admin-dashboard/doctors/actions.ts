@@ -4,16 +4,38 @@ import { prisma } from "@/lib/prisma";
 import bcrypt from "bcrypt";
 import { revalidatePath } from "next/cache";
 
-export async function getDoctorAccounts() {
+export async function getDoctorAccounts(page: number = 1, pageSize: number = 10, search: string = "") {
+  const take = Math.min(Math.max(pageSize, 1), 100);
   try {
-    const accounts = await prisma.user.findMany({
-      where: { role: "DOCTOR" },
-      orderBy: { createdAt: "desc" },
-    });
-    return accounts;
+    const skip = (Math.max(page, 1) - 1) * take;
+    const term = search.trim();
+
+    const where = {
+      role: "DOCTOR" as const,
+      ...(term
+        ? {
+            OR: [
+              { name: { contains: term, mode: "insensitive" as const } },
+              { doctorCode: { contains: term, mode: "insensitive" as const } },
+            ],
+          }
+        : {}),
+    };
+
+    const [items, total] = await Promise.all([
+      prisma.user.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip,
+        take,
+      }),
+      prisma.user.count({ where }),
+    ]);
+
+    return { items, total, page: Math.max(page, 1), pageSize: take };
   } catch (error) {
     console.error("Error fetching accounts:", error);
-    return[];
+    return { items: [], total: 0, page: 1, pageSize: take };
   }
 }
 

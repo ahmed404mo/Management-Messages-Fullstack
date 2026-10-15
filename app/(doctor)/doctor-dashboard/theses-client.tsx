@@ -10,6 +10,7 @@ import { createPortal } from "react-dom";
 // استيراد تنسيقات Swiper
 import 'swiper/css';
 import 'swiper/css/pagination';
+import { PaginationControls } from "@/components/list-pagination";
 
 // ألوان السلايدر العلوي
 const sliderColors = [
@@ -105,92 +106,17 @@ const ThesisCard = ({ thesis, onClick, colorTheme }: { thesis: any; onClick: () 
   );
 };
 
-// مكون أزرار التقسيم (Pagination)
-const PaginationControls = ({ currentPage, totalPages, onPageChange }: { currentPage: number; totalPages: number; onPageChange: (page: number) => void }) => {
-  if (totalPages <= 1) return null;
-  
-  // حساب نطاق الأرقام التي تظهر
-  const getPageNumbers = () => {
-    const pages = [];
-    const maxVisible = 5;
-    
-    if (totalPages <= maxVisible) {
-      for (let i = 1; i <= totalPages; i++) pages.push(i);
-    } else {
-      if (currentPage <= 3) {
-        for (let i = 1; i <= 5; i++) pages.push(i);
-        pages.push('...');
-        pages.push(totalPages);
-      } else if (currentPage >= totalPages - 2) {
-        pages.push(1);
-        pages.push('...');
-        for (let i = totalPages - 4; i <= totalPages; i++) pages.push(i);
-      } else {
-        pages.push(1);
-        pages.push('...');
-        for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
-        pages.push('...');
-        pages.push(totalPages);
-      }
-    }
-    return pages;
-  };
-
-  return (
-    <div className="flex justify-center items-center gap-2 mt-12 pb-8" dir="ltr">
-      <button
-        onClick={() => onPageChange(currentPage - 1)}
-        disabled={currentPage === 1}
-        className={`p-2 rounded-xl border transition-all ${
-          currentPage === 1 
-            ? 'bg-slate-50 border-slate-200 text-slate-300 cursor-not-allowed' 
-            : 'bg-white border-slate-200 text-slate-600 hover:bg-blue-600 hover:text-white hover:border-blue-600'
-        }`}
-      >
-        <ChevronRight size={20} />
-      </button>
-      
-      {getPageNumbers().map((page, idx) => (
-        <button
-          key={idx}
-          onClick={() => typeof page === 'number' && onPageChange(page)}
-          className={`min-w-[40px] h-10 rounded-xl font-black text-sm transition-all ${
-            currentPage === page
-              ? 'bg-blue-600 text-white shadow-lg shadow-blue-200'
-              : typeof page === 'number'
-                ? 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'
-                : 'text-slate-400 cursor-default'
-          }`}
-          disabled={typeof page !== 'number'}
-        >
-          {page}
-        </button>
-      ))}
-      
-      <button
-        onClick={() => onPageChange(currentPage + 1)}
-        disabled={currentPage === totalPages}
-        className={`p-2 rounded-xl border transition-all ${
-          currentPage === totalPages 
-            ? 'bg-slate-50 border-slate-200 text-slate-300 cursor-not-allowed' 
-            : 'bg-white border-slate-200 text-slate-600 hover:bg-blue-600 hover:text-white hover:border-blue-600'
-        }`}
-      >
-        <ChevronLeft size={20} />
-      </button>
-    </div>
-  );
-};
+// مكون أزرار التقسيم (Pagination) - الآن مستورد من components/list-pagination
 
 export default function ThesesClientView({ initialTheses }: { initialTheses: any[] }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedThesis, setSelectedThesis] = useState<any | null>(null);
-  const [showAllMasters, setShowAllMasters] = useState(false);
-  const [showAllPhds, setShowAllPhds] = useState(false);
   const [mounted, setMounted] = useState(false);
   
   // ✅ حالات التقسيم (Pagination)
   const [currentPage, setCurrentPage] = useState(1);
+  const [phdPage, setPhdPage] = useState(1);
+  const [masterPage, setMasterPage] = useState(1);
 
   useEffect(() => {
     setMounted(true);
@@ -236,7 +162,7 @@ export default function ThesesClientView({ initialTheses }: { initialTheses: any
   const phdTheses = initialTheses.filter(t => t.type === "PHD");
 
   return (
-    <div className="w-full pb-20 bg-transparent relative" dir="rtl">
+    <div className="w-full pb-20 bg-transparent relative overflow-x-clip" dir="rtl">
       
       {/* 1. Hero Section */}
       <motion.div 
@@ -250,7 +176,7 @@ export default function ThesesClientView({ initialTheses }: { initialTheses: any
         </div>
         
         <motion.div animate={{ scale: isSearching ? 0.9 : 1 }} className="w-full max-w-7xl mx-auto px-4 relative z-10 text-center">
-          <span className="inline-block py-2 px-6 rounded-full bg-white/5 border border-white/10 text-blue-300 text-[10px] font-black tracking-[4px] uppercase mb-6 backdrop-blur-md">
+          <span className="inline-block py-2 px-4 sm:px-6 rounded-full bg-white/5 border border-white/10 text-blue-300 text-[9px] sm:text-[10px] font-black tracking-[2px] sm:tracking-[4px] uppercase mb-6 backdrop-blur-md">
             Digital Repository
           </span>
           <h1 className="text-4xl md:text-6xl font-black text-white mb-4 tracking-tight">
@@ -290,12 +216,12 @@ export default function ThesesClientView({ initialTheses }: { initialTheses: any
         {isSearching ? (
           /* Search Results View - مع Pagination */
           <div className="space-y-8 min-h-[50vh]">
-            <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-black text-slate-900 flex items-center gap-3">
+            <div className="flex flex-wrap justify-between items-center gap-3">
+              <h2 className="text-xl sm:text-2xl font-black text-slate-900 flex items-center gap-3">
                 <div className="w-2 h-8 bg-blue-600 rounded-full"></div>
                 نتائج البحث ({filteredTheses.length})
               </h2>
-              <div className="text-sm text-slate-400 font-bold">
+              <div className="text-xs sm:text-sm text-slate-400 font-bold">
                 صفحة {currentPage} من {totalPages || 1}
               </div>
             </div>
@@ -351,41 +277,47 @@ export default function ThesesClientView({ initialTheses }: { initialTheses: any
               </div>
             )}
 
-            {/* Categorized Lists - هنضيف Pagination هنا برضو */}
+            {/* Categorized Lists - مع Pagination لكل قسم */}
             <div className="grid gap-20">
               {[
-                { title: "رسائل الدكتوراه", data: phdTheses, show: showAllPhds, setShow: setShowAllPhds, icon: <GraduationCap size={24}/>, color: "bg-slate-950" },
-                { title: "رسائل الماجستير", data: masterTheses, show: showAllMasters, setShow: setShowAllMasters, icon: <BookMarked size={24}/>, color: "bg-blue-600" }
-              ].map((sec, i) => sec.data.length > 0 && (
-                <div key={i} className="space-y-8">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className={`w-14 h-14 ${sec.color} text-white rounded-[1.8rem] flex items-center justify-center shadow-xl`}>{sec.icon}</div>
-                      <div>
-                        <h2 className="text-2xl font-black text-slate-900">{sec.title}</h2>
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{sec.data.length} رسالة مسجلة</span>
+                { title: "رسائل الدكتوراه", data: phdTheses, page: phdPage, setPage: setPhdPage, icon: <GraduationCap size={24}/>, color: "bg-slate-950" },
+                { title: "رسائل الماجستير", data: masterTheses, page: masterPage, setPage: setMasterPage, icon: <BookMarked size={24}/>, color: "bg-blue-600" }
+              ].map((sec, i) => {
+                if (sec.data.length === 0) return null;
+                const totalPages = Math.ceil(sec.data.length / ITEMS_PER_PAGE);
+                const paginated = sec.data.slice((sec.page - 1) * ITEMS_PER_PAGE, sec.page * ITEMS_PER_PAGE);
+
+                return (
+                  <div key={i} className="space-y-8">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="flex items-center gap-4">
+                        <div className={`w-14 h-14 ${sec.color} text-white rounded-[1.8rem] flex items-center justify-center shadow-xl`}>{sec.icon}</div>
+                        <div>
+                          <h2 className="text-xl sm:text-2xl font-black text-slate-900">{sec.title}</h2>
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{sec.data.length} رسالة مسجلة</span>
+                        </div>
                       </div>
+                      {totalPages > 1 && (
+                        <div className="text-xs sm:text-sm text-slate-400 font-bold">
+                          صفحة {sec.page} من {totalPages}
+                        </div>
+                      )}
                     </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {(sec.show ? sec.data : sec.data.slice(0, 3)).map(t => (
-                      <ThesisCard key={t.id} thesis={t} onClick={() => setSelectedThesis(t)} />
-                    ))}
-                  </div>
-                  
-                  {sec.data.length > 3 && (
-                    <div className="flex justify-center">
-                      <button 
-                        onClick={() => sec.setShow(!sec.show)}
-                        className="flex items-center gap-2 bg-slate-50 text-slate-900 font-black px-8 py-4 rounded-2xl hover:bg-slate-900 hover:text-white transition-all border border-slate-100 shadow-sm"
-                      >
-                        {sec.show ? <><ChevronUp size={18}/> إخفاء</> : <><ChevronDown size={18}/> عرض الكل</>}
-                      </button>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {paginated.map(t => (
+                        <ThesisCard key={t.id} thesis={t} onClick={() => setSelectedThesis(t)} />
+                      ))}
                     </div>
-                  )}
-                </div>
-              ))}
+
+                    <PaginationControls
+                      currentPage={sec.page}
+                      totalPages={totalPages}
+                      onPageChange={sec.setPage}
+                    />
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}

@@ -14,10 +14,15 @@ import {
   FileSpreadsheet, UploadCloud, Loader2
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { PaginationControls } from "@/components/list-pagination";
+
+const PAGE_SIZE = 10;
 
 export default function DoctorManagement() {
   const [activeTab, setActiveTab] = useState<"excel" | "add" | "list">("excel");
   const [accounts, setAccounts] = useState<any[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   
@@ -41,12 +46,25 @@ export default function DoctorManagement() {
   };
 
   useEffect(() => {
-    if (activeTab === "list") loadAccounts();
+    if (activeTab === "list") loadAccounts(1, searchTerm);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
-  const loadAccounts = async () => {
-    const data = await getDoctorAccounts();
-    setAccounts(data);
+  useEffect(() => {
+    if (activeTab !== "list") return;
+    const t = setTimeout(() => {
+      setPage(1);
+      loadAccounts(1, searchTerm);
+    }, 350);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTerm]);
+
+  const loadAccounts = async (pageToLoad: number = page, search: string = "") => {
+    const data = await getDoctorAccounts(pageToLoad, PAGE_SIZE, search);
+    setAccounts(data.items);
+    setTotal(data.total);
+    setPage(data.page);
   };
 
   const handleEditClick = (acc: any) => {
@@ -59,7 +77,7 @@ export default function DoctorManagement() {
     const res = await updateDoctorAction(id, editForm);
     if (res.success) {
       setEditingId(null);
-      await loadAccounts();
+      await loadAccounts(page, searchTerm);
       showPopup("تم تحديث البيانات بنجاح", "success");
     } else {
       showPopup(res.error || "فشل التحديث", "error");
@@ -72,7 +90,7 @@ export default function DoctorManagement() {
     const res = await deleteDoctorAction(id);
     if (res.success) {
       setDeleteConfirm(null);
-      await loadAccounts();
+      await loadAccounts(accounts.length === 1 && page > 1 ? page - 1 : page, searchTerm);
       showPopup("تم حذف الحساب بنجاح", "success");
     } else {
       showPopup(res.error || "حدث خطأ أثناء الحذف", "error");
@@ -167,11 +185,6 @@ export default function DoctorManagement() {
 
     reader.readAsBinaryString(file);
   };
-
-  const filteredAccounts = accounts.filter(acc => 
-    acc.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    (acc.doctorCode && acc.doctorCode.includes(searchTerm))
-  );
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 px-4 relative" dir="rtl">
@@ -366,9 +379,14 @@ export default function DoctorManagement() {
 
         {activeTab === "list" && (
           <motion.div key="list-tab" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6 relative z-10">
-            <div className="bg-white/80 backdrop-blur-md p-3 px-6 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4 max-w-md mr-auto focus-within:border-emerald-400 transition-all">
-              <Search className="text-slate-400" size={20} />
-              <input type="text" placeholder="ابحث بالاسم أو الكود..." className="bg-transparent w-full outline-none font-bold text-slate-800 text-sm" onChange={(e) => setSearchTerm(e.target.value)} />
+            <div className="flex justify-between items-center gap-4">
+              <div className="bg-white/80 backdrop-blur-md p-3 px-6 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4 max-w-md flex-1 focus-within:border-emerald-400 transition-all">
+                <Search className="text-slate-400" size={20} />
+                <input type="text" placeholder="ابحث بالاسم أو الكود..." value={searchTerm} className="bg-transparent w-full outline-none font-bold text-slate-800 text-sm" onChange={(e) => setSearchTerm(e.target.value)} />
+              </div>
+              <div className="bg-slate-100 px-4 py-3 rounded-2xl">
+                <span className="font-black text-slate-700">إجمالي: {total} حساب</span>
+              </div>
             </div>
 
             <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-2xl overflow-hidden">
@@ -382,7 +400,7 @@ export default function DoctorManagement() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {filteredAccounts.map((acc) => (
+                  {accounts.map((acc) => (
                     <tr key={acc.id} className="hover:bg-slate-50/80 transition-all group">
                       <td className="p-6">
                         {editingId === acc.id ? (
@@ -420,6 +438,8 @@ export default function DoctorManagement() {
                 </tbody>
               </table>
             </div>
+
+            <PaginationControls currentPage={page} totalPages={Math.ceil(total / PAGE_SIZE)} onPageChange={(p) => loadAccounts(p, searchTerm)} />
           </motion.div>
         )}
 

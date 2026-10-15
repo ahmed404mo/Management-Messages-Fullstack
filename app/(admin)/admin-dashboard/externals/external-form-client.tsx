@@ -4,8 +4,9 @@ import ExternalForm from "./external-form";
 import { deleteExternalAction, updateExternalAction } from "./actions";
 import { School, Award, Trash2, Check, X, AlertCircle, Edit3, Loader2, GraduationCap } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { RoutePagination } from "@/components/list-pagination";
 
-export default function ExternalFormClient({ initialData }: { initialData: any[] }) {
+export default function ExternalFormClient({ initialData, page = 1, totalPages = 1 }: { initialData: any[]; page?: number; totalPages?: number }) {
   const [popup, setPopup] = useState({ show: false, message: "", type: "success" as "success" | "error" });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ name: "", academicTitle: "", universityName: "", specialty: "" });
@@ -159,6 +160,10 @@ export default function ExternalFormClient({ initialData }: { initialData: any[]
             </tbody>
           </table>
         </div>
+      </div>
+
+      <div className="lg:col-span-12">
+        <RoutePagination page={page} totalPages={totalPages} />
       </div>
     </div>
   );

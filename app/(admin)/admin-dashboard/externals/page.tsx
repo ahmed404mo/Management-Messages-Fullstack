@@ -2,8 +2,20 @@ import { prisma } from "@/lib/prisma";
 import ExternalFormClient from "./external-form-client"; // سنحول الجزء ده لـ Client Component بسيط عشان الـ Popups
 import { Globe, School, Trash2, Award, Search } from "lucide-react";
 
-export default async function ExternalsPage() {
-  const externals = await prisma.externalExaminer.findMany({ orderBy: { name: 'asc' } });
+const PAGE_SIZE = 12;
+
+export default async function ExternalsPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
+  const params = await searchParams;
+  const page = Math.max(parseInt(params?.page ?? "1", 10) || 1, 1);
+
+  const [externals, total] = await Promise.all([
+    prisma.externalExaminer.findMany({
+      orderBy: { name: 'asc' },
+      skip: (page - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
+    }),
+    prisma.externalExaminer.count(),
+  ]);
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 px-4" dir="rtl">
@@ -19,9 +31,16 @@ export default async function ExternalsPage() {
             <p className="text-sm font-bold text-slate-500 mt-2 italic opacity-80">إدارة قاعدة بيانات الممتحنين من الجامعات الأخرى</p>
           </div>
         </div>
+        <div className="bg-slate-100 px-5 py-3 rounded-2xl">
+          <span className="font-black text-slate-700">إجمالي: {total}</span>
+        </div>
       </div>
 
-      <ExternalFormClient initialData={externals} />
+      <ExternalFormClient
+        initialData={externals}
+        page={page}
+        totalPages={Math.ceil(total / PAGE_SIZE)}
+      />
     </div>
   );
 }

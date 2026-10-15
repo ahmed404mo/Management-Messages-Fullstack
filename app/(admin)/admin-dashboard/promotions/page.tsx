@@ -1,11 +1,22 @@
 import { prisma } from "@/lib/prisma";
 import PromotionRow from "./promotion-row";
 import { TrendingUp, Award, Clock } from "lucide-react";
+import { RoutePagination } from "@/components/list-pagination";
 
-export default async function PromotionsPage() {
-  const doctors = await prisma.facultyDoctor.findMany({
-    orderBy: { name: 'asc' }
-  });
+const PAGE_SIZE = 10;
+
+export default async function PromotionsPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
+  const params = await searchParams;
+  const page = Math.max(parseInt(params?.page ?? "1", 10) || 1, 1);
+
+  const [doctors, total] = await Promise.all([
+    prisma.facultyDoctor.findMany({
+      orderBy: { name: 'asc' },
+      skip: (page - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
+    }),
+    prisma.facultyDoctor.count(),
+  ]);
 
   const recentPromotions = await prisma.promotion.findMany({
     include: { doctor: true },
@@ -35,7 +46,7 @@ export default async function PromotionsPage() {
         <div className="lg:col-span-8 space-y-6">
           <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-2xl overflow-hidden">
             <div className="p-6 bg-slate-950 text-white font-black text-[11px] uppercase tracking-[4px] text-center border-b border-white/10">
-              أعضاء هيئة التدريس الحالية
+              أعضاء هيئة التدريس الحالية ({total})
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-right border-collapse">
@@ -57,6 +68,8 @@ export default async function PromotionsPage() {
               </table>
             </div>
           </div>
+
+          <RoutePagination page={page} totalPages={Math.ceil(total / PAGE_SIZE)} />
         </div>
 
         {/* Sidebar Column - Recent Activity */}

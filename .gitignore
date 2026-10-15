@@ -21,3 +21,5 @@ build/
 .vercel
 .DS_Store
 *.pem
+# TypeScript build info
+tsconfig.tsbuildinfo

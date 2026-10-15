@@ -255,24 +255,44 @@ export async function bulkAddThesesAction(thesesData: any[]) {
   }
 }
 
-// دالة لجلب الرسائل
-export async function getThesesAction() {
+// دالة لجلب الرسائل مع pagination وبحث
+export async function getThesesAction(page: number = 1, pageSize: number = 10, search: string = "") {
+  const take = Math.min(Math.max(pageSize, 1), 100);
   try {
-    const theses = await prisma.thesis.findMany({
-      orderBy: { registrationDate: 'desc' },
-      include: {
-        supervisors: {
-          include: {
-            doctor: true,
-            externalExaminer: true
-          }
+    const skip = (Math.max(page, 1) - 1) * take;
+    const term = search.trim();
+
+    const where = term
+      ? {
+          OR: [
+            { title: { contains: term, mode: "insensitive" as const } },
+            { studentName: { contains: term, mode: "insensitive" as const } },
+          ],
         }
-      }
-    });
-    return theses;
+      : {};
+
+    const [theses, total] = await Promise.all([
+      prisma.thesis.findMany({
+        where,
+        orderBy: { registrationDate: 'desc' },
+        include: {
+          supervisors: {
+            include: {
+              doctor: true,
+              externalExaminer: true
+            }
+          }
+        },
+        skip,
+        take,
+      }),
+      prisma.thesis.count({ where }),
+    ]);
+
+    return { items: theses, total, page: Math.max(page, 1), pageSize: take };
   } catch (error) {
     console.error(error);
-    return [];
+    return { items: [], total: 0, page: 1, pageSize: take };
   }
 }
 

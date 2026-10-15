@@ -3,6 +3,9 @@ import { useState, useEffect } from "react";
 import { Calendar, User, GraduationCap, Search, X, Info, Users, Clock, CheckCircle2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { createPortal } from "react-dom";
+import { PaginationControls } from "@/components/list-pagination";
+
+const PAGE_SIZE = 12;
 
 export default function ThesesListContent({ initialTheses }: { initialTheses: any[] }) {
   const [searchTerm, setSearchTerm] = useState("");
@@ -10,10 +13,14 @@ export default function ThesesListContent({ initialTheses }: { initialTheses: an
   const [filterStatus, setFilterStatus] = useState("ALL");
   const [selectedThesis, setSelectedThesis] = useState<any | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [page, setPage] = useState(1);
 
   useEffect(() => { setMounted(true); }, []);
 
-  // دالة البحث الذكي
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, filterType, filterStatus]);
+
   const filteredTheses = initialTheses.filter((t) => {
     const query = searchTerm.trim().toLowerCase();
     const dateAr = new Date(t.registrationDate).toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -31,6 +38,9 @@ export default function ThesesListContent({ initialTheses }: { initialTheses: an
 
     return matchesSearch && matchesType && matchesStatus;
   });
+
+  const paginatedTheses = filteredTheses.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const totalPages = Math.ceil(filteredTheses.length / PAGE_SIZE);
 
   return (
     <div className="space-y-6" dir="rtl">
@@ -66,7 +76,7 @@ export default function ThesesListContent({ initialTheses }: { initialTheses: an
 
       {/* قائمة الكروت */}
       <div className="grid gap-4">
-        {filteredTheses.map((thesis) => (
+        {paginatedTheses.map((thesis) => (
           <motion.div
             key={thesis.id}
             whileHover={{ scale: 1.01, y: -2 }}
@@ -100,6 +110,8 @@ export default function ThesesListContent({ initialTheses }: { initialTheses: an
           </motion.div>
         ))}
       </div>
+
+      <PaginationControls currentPage={page} totalPages={totalPages} onPageChange={setPage} />
 
       {/* مودال التفاصيل (Pop-up) */}
       {mounted && selectedThesis && createPortal(

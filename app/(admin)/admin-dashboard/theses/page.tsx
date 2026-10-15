@@ -20,10 +20,15 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import ThesisForm from "./thesis-form";
 import { bulkAddThesesAction, getThesesAction, deleteThesisAction, updateThesisAction, deleteAllThesesAction } from "./actions";
+import { PaginationControls } from "@/components/list-pagination";
+
+const PAGE_SIZE = 10;
 
 export default function ThesesPage() {
   const [activeTab, setActiveTab] = useState<"excel" | "add" | "list">("excel");
   const [theses, setTheses] = useState<any[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
   const [doctors, setDoctors] = useState<any[]>([]);
   const [externals, setExternals] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -57,8 +62,19 @@ export default function ThesesPage() {
   }, []);
 
   useEffect(() => {
-    if (activeTab === "list") loadTheses();
+    if (activeTab === "list") loadTheses(1, searchTerm);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
+
+  useEffect(() => {
+    if (activeTab !== "list") return;
+    const t = setTimeout(() => {
+      setPage(1);
+      loadTheses(1, searchTerm);
+    }, 350);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTerm]);
 
   const loadInitialData = async () => {
     try {
@@ -73,9 +89,11 @@ export default function ThesesPage() {
     }
   };
 
-  const loadTheses = async () => {
-    const data = await getThesesAction();
-    setTheses(data);
+  const loadTheses = async (pageToLoad: number = page, search: string = "") => {
+    const data = await getThesesAction(pageToLoad, PAGE_SIZE, search);
+    setTheses(data.items);
+    setTotal(data.total);
+    setPage(data.page);
   };
 
   // دالة مسح كل الرسائل
@@ -86,7 +104,7 @@ export default function ThesesPage() {
     if (res.success) {
       showPopup(res.message || `✅ تم حذف ${res.count} رسالة بنجاح`, "success");
       setShowDeleteAllConfirm(false);
-      loadTheses();
+      loadTheses(1, searchTerm);
     } else {
       showPopup(res.error || "فشل حذف الرسائل", "error");
     }
@@ -106,7 +124,7 @@ export default function ThesesPage() {
     const res = await updateThesisAction(id, editForm);
     if (res.success) {
       setEditingId(null);
-      await loadTheses();
+      await loadTheses(page, searchTerm);
       showPopup("تم تحديث البيانات بنجاح", "success");
     } else {
       showPopup(res.error || "فشل التحديث", "error");
@@ -119,7 +137,7 @@ export default function ThesesPage() {
     const res = await deleteThesisAction(id);
     if (res.success) {
       setDeleteConfirm(null);
-      await loadTheses();
+      await loadTheses(theses.length === 1 && page > 1 ? page - 1 : page, searchTerm);
       showPopup("تم حذف الرسالة بنجاح", "success");
     } else {
       showPopup(res.error || "حدث خطأ أثناء الحذف", "error");
@@ -262,7 +280,8 @@ export default function ThesesPage() {
             setActiveTab("list");
             setUploadStatus("idle");
             setUploadProgress(0);
-            loadTheses();
+            setSearchTerm("");
+            loadTheses(1, "");
           }, 1500);
         } else {
           setUploadStatus("error");
@@ -281,11 +300,6 @@ export default function ThesesPage() {
 
     reader.readAsBinaryString(file);
   };
-
-  const filteredTheses = theses.filter(thesis => 
-    thesis.title?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    thesis.studentName?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8 relative" dir="rtl">
@@ -314,7 +328,7 @@ export default function ThesesPage() {
               </div>
               <h3 className="text-xl font-black text-slate-900 mb-2">⚠️ تحذير: مسح كل الرسائل</h3>
               <p className="text-slate-500 font-bold text-sm mb-4">
-                هل أنت متأكد من حذف <span className="text-red-600 font-black">{theses.length}</span> رسالة وجميع المشرفين المرتبطين بها؟
+                هل أنت متأكد من حذف <span className="text-red-600 font-black">{total}</span> رسالة وجميع المشرفين المرتبطين بها؟
               </p>
               <p className="text-amber-600 font-bold text-xs mb-8 bg-amber-50 p-3 rounded-xl">
                 ⚠️ هذا الإجراء لا يمكن التراجع عنه!
@@ -492,11 +506,11 @@ export default function ThesesPage() {
             <div className="flex justify-between items-center gap-4">
               <div className="bg-white/80 backdrop-blur-md p-3 px-6 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4 flex-1">
                 <Search className="text-slate-400" size={20} />
-                <input type="text" placeholder="ابحث بالعنوان أو اسم الطالب..." className="bg-transparent w-full outline-none font-bold text-slate-800 text-sm" onChange={(e) => setSearchTerm(e.target.value)} />
+                <input type="text" placeholder="ابحث بالعنوان أو اسم الطالب..." value={searchTerm} className="bg-transparent w-full outline-none font-bold text-slate-800 text-sm" onChange={(e) => setSearchTerm(e.target.value)} />
               </div>
               
               <div className="bg-slate-100 px-4 py-3 rounded-2xl">
-                <span className="font-black text-slate-700">إجمالي: {theses.length} رسالة</span>
+                <span className="font-black text-slate-700">إجمالي: {total} رسالة</span>
               </div>
             </div>
 
@@ -514,7 +528,7 @@ export default function ThesesPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {filteredTheses.map((thesis) => (
+                    {theses.map((thesis) => (
                       <tr key={thesis.id} className="hover:bg-slate-50/80 transition-all group">
                         <td className="p-6">
                           {editingId === thesis.id ? (
@@ -565,13 +579,15 @@ export default function ThesesPage() {
                         </td>
                       </tr>
                     ))}
-                    {filteredTheses.length === 0 && (
+                    {theses.length === 0 && (
                       <tr><td colSpan={6} className="p-24 text-center font-black text-slate-300 italic">لا يوجد رسائل مسجلة</td></tr>
                     )}
                   </tbody>
                 </table>
               </div>
             </div>
+
+            <PaginationControls currentPage={page} totalPages={Math.ceil(total / PAGE_SIZE)} onPageChange={(p) => loadTheses(p, searchTerm)} />
           </motion.div>
         )}
 

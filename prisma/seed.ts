@@ -13,7 +13,7 @@ async function main() {
       doctorCode: 'admin', // ده اللي هتدخل بيه
       name: 'مدير النظام',
       password: hashedPassword,
-      tempPassword: 'admin123', // عشان لو حبيت تعرضه في الجدول
+      tempPassword: 'admin123', 
       academicTitle: 'مدير النظام', // لأننا ضفناها في السكيما
       role: 'ADMIN',
     },

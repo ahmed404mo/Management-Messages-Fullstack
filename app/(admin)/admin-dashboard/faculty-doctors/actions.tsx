@@ -2,13 +2,21 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
-export async function getFacultyDoctors() {
+export async function getFacultyDoctors(page: number = 1, pageSize: number = 10) {
+  const take = Math.min(Math.max(pageSize, 1), 100);
   try {
-    return await prisma.facultyDoctor.findMany({
-      orderBy: { name: 'asc' }
-    });
+    const skip = (Math.max(page, 1) - 1) * take;
+    const [items, total] = await Promise.all([
+      prisma.facultyDoctor.findMany({
+        orderBy: { name: 'asc' },
+        skip,
+        take,
+      }),
+      prisma.facultyDoctor.count(),
+    ]);
+    return { items, total, page: Math.max(page, 1), pageSize: take };
   } catch (error) {
-    return [];
+    return { items: [], total: 0, page: 1, pageSize: take };
   }
 }
 
